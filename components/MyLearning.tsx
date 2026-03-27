@@ -157,7 +157,7 @@ function LearningPlanCalendar() {
 
       {/* Last 4 weeks */}
       <div className="mt-4 pt-4 border-t border-[var(--cds-color-grey-100)]">
-        <p className="cds-subtitle-sm text-[var(--cds-color-grey-975)] mb-3">Last 4 weeks</p>
+        <p className="cds-subtitle-md text-[var(--cds-color-grey-600)] mb-3">Last 4 weeks</p>
         <div className="flex gap-6">
           <div>
             <p className="cds-title-xs text-[var(--cds-color-grey-975)]">20</p>
