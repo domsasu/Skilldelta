@@ -1,9 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Icons } from './Icons';
-import {
-  COHORT_LIVE_LEARNERS_COUNT,
-} from './WeeklyLearningLeaderboard';
+import { SkillGapTool } from './SkillGapTool';
 import {
   CohortId,
   COHORTS,
@@ -327,53 +325,6 @@ const inDemandSkills = [
   "Computer Vision", "Computer Vision", "Computer Vision"
 ];
 
-const collectionCourses = [
-  {
-    id: 1,
-    title: "English for Career Development",
-    provider: "University of Pennsylvania",
-    description: "Skills you'll gain: Business communication, Human Resources, Interviewing Skills, Verbal Communication Skills, Language Learning",
-    rating: 4.8,
-    reviews: "16K",
-    level: "Beginner",
-    duration: "1-3 months",
-    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400"
-  },
-  {
-    id: 2,
-    title: "English for Career Development",
-    provider: "University of Pennsylvania",
-    description: "Skills you'll gain: Business communication, Human Resources, Interviewing Skills, Verbal Communication Skills, Language Learning",
-    rating: 4.8,
-    reviews: "16K",
-    level: "Beginner",
-    duration: "1-3 months",
-    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=400"
-  },
-  {
-    id: 3,
-    title: "English for Career Development",
-    provider: "University of Pennsylvania",
-    description: "Skills you'll gain: Business communication, Human Resources, Interviewing Skills, Verbal Communication Skills, Language Learning",
-    rating: 4.8,
-    reviews: "16K",
-    level: "Beginner",
-    duration: "1-3 months",
-    image: "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&q=80&w=400"
-  },
-  {
-    id: 4,
-    title: "English for Career Development",
-    provider: "University of Pennsylvania",
-    description: "Skills you'll gain: Business communication, Human Resources, Interviewing Skills, Verbal Communication Skills, Language Learning",
-    rating: 4.8,
-    reviews: "16K",
-    level: "Beginner",
-    duration: "1-3 months",
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=400"
-  }
-];
-
 function HomeLeaderboard({
   selectedCohort,
   onSelectCohort,
@@ -468,7 +419,6 @@ export const Home: React.FC<HomeProps> = ({
 }) => {
   const streakHoursCompletedToday = 0;
 
-  const [selectedChip, setSelectedChip] = useState('chip1');
   const [selectedCohort, setSelectedCohort] = useState<CohortId>('careerswitchers');
 
   // Intro video: muted by default, end state for "Continue watching"
@@ -742,23 +692,6 @@ export const Home: React.FC<HomeProps> = ({
                         >
                           {completedLessons > 0 ? 'Resume learning' : 'Start learning'}
                         </button>
-                        <div
-                          className="flex min-h-0 min-w-0 flex-1 flex-row flex-nowrap items-center gap-2"
-                          aria-label={`${COHORT_LIVE_LEARNERS_COUNT.toLocaleString()} live learners`}
-                        >
-                          <span className="flex shrink-0 items-center justify-center p-1 -m-1">
-                            <span
-                              className="cds-live-pulse-dot h-2.5 w-2.5 rounded-full border-2 border-[var(--cds-color-white)] bg-[var(--cds-color-green-600)]"
-                              aria-hidden
-                            />
-                          </span>
-                          <p className="cds-body-tertiary shrink-0 whitespace-nowrap leading-none text-[var(--cds-color-grey-600)]">
-                            <span className="tabular-nums text-[var(--cds-color-grey-975)]">
-                              {COHORT_LIVE_LEARNERS_COUNT.toLocaleString()}
-                            </span>{' '}
-                            live learners
-                          </p>
-                        </div>
                       </div>
                       <div className="flex h-8 shrink-0 items-center justify-end rounded px-2.5 bg-[var(--cds-color-white)]">
                         <img
@@ -924,8 +857,7 @@ export const Home: React.FC<HomeProps> = ({
       {/* White Content Area */}
       <div className="max-w-[1440px] mx-auto px-6 py-10 space-y-12">
 
-        {/* Leaderboard: collapsed strip + full view in drawer */}
-        <HomeLeaderboard selectedCohort={selectedCohort} onSelectCohort={setSelectedCohort} />
+        <SkillGapTool />
 
         {/* Course Recommendations - loads in after top section */}
         <div className="animate-widget-slide-up-content">
@@ -1076,79 +1008,8 @@ export const Home: React.FC<HomeProps> = ({
           </div>
         </div>
 
-        {/* Collection Title */}
-        <div>
-          <h2 className="cds-subtitle-lg text-[var(--cds-color-grey-975)] mb-2">Collection Title</h2>
-
-          {/* Filter Chips */}
-          <div className="flex flex-wrap gap-1 mb-4">
-            {['Chip 1', 'Chip 2', 'Chip 3'].map((chip, idx) => (
-              <button
-                key={chip}
-                onClick={() => setSelectedChip(`chip${idx + 1}`)}
-                className={`cds-body-secondary h-8 rounded-[var(--cds-border-radius-400)] px-3 py-1 transition-colors ${
-                  selectedChip === `chip${idx + 1}`
-                    ? 'bg-[var(--cds-color-white)] border border-[var(--cds-color-grey-100)] text-[var(--cds-color-grey-975)]'
-                    : 'bg-[var(--cds-color-white)] border border-[var(--cds-color-grey-100)] text-[var(--cds-color-grey-975)] hover:bg-[var(--cds-color-grey-25)]'
-                }`}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Collection Cards */}
-          <div className="flex gap-4">
-            {collectionCourses.map((course) => (
-              <div key={course.id} className="bg-[var(--cds-color-white)] border-2 border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-200)] overflow-hidden hover:shadow-[var(--cds-elevation-level2)] transition-shadow group flex-1 min-w-0 flex flex-col">
-                {/* Course Image */}
-                <div className="relative h-[171px] overflow-hidden rounded-[var(--cds-border-radius-100)] m-2">
-                  <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 rounded-[var(--cds-border-radius-100)]" style={{ backgroundImage: `url("${course.image}")` }}></div>
-                </div>
-
-                {/* Course Content */}
-                <div className="px-3 pb-3 pt-1 flex flex-col flex-1">
-                  {/* Partner */}
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div className="w-6 h-6 border border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-50)] flex items-center justify-center shrink-0 bg-[var(--cds-color-white)]">
-                      <span className="cds-body-tertiary text-[var(--cds-color-grey-975)] leading-none" style={{ fontSize: '8px' }}>UP</span>
-                    </div>
-                    <span className="cds-body-secondary text-[var(--cds-color-grey-600)]">{course.provider}</span>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="cds-subtitle-md text-[var(--cds-color-grey-975)] mb-2">{course.title}</h3>
-
-                  {/* Description */}
-                  <p className="cds-body-secondary text-[var(--cds-color-grey-600)] mb-4 line-clamp-3">
-                    {course.description}
-                  </p>
-
-                  <div className="flex-1" />
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="material-symbols-rounded text-[var(--cds-color-grey-975)]" style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span className="cds-subtitle-md text-[var(--cds-color-grey-975)]">{course.rating}</span>
-                    <span className="cds-body-secondary text-[var(--cds-color-grey-600)] ml-1">{course.reviews} reviews</span>
-                  </div>
-
-                  {/* Meta */}
-                  <p className="cds-body-secondary text-[var(--cds-color-grey-600)]">
-                    {course.level} · Course · {course.duration}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Show more button */}
-          <div className="mt-4">
-            <button className="cds-action-secondary px-4 py-2 border border-[var(--cds-color-blue-700)] text-[var(--cds-color-blue-700)] rounded-[var(--cds-border-radius-100)] hover:bg-[var(--cds-color-blue-25)] transition-colors">
-              Show more
-            </button>
-          </div>
-        </div>
+        {/* Leaderboard: collapsed strip + full view in drawer */}
+        <HomeLeaderboard selectedCohort={selectedCohort} onSelectCohort={setSelectedCohort} />
 
       </div>
     </div>

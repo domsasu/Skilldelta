@@ -14,13 +14,14 @@ interface MyLearningProps {
   assessmentResults?: Record<string, number> | null;
 }
 
-type TabId = 'in-progress' | 'saved' | 'completed' | 'skills';
+type TabId = 'in-progress' | 'saved' | 'completed' | 'skills' | 'career-tools';
 
-const TABS: { id: TabId; label: string }[] = [
+const TABS: { id: TabId; label: string; newBadge?: boolean }[] = [
   { id: 'in-progress', label: 'In progress' },
   { id: 'completed', label: 'Completed' },
   { id: 'saved', label: 'Saved' },
   { id: 'skills', label: 'Certificates & Badges' },
+  { id: 'career-tools', label: 'Career tools', newBadge: true },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -609,13 +610,21 @@ export const MyLearning: React.FC<MyLearningProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`cds-body-secondary py-3 transition-colors border-b-2 ${
+                className={`cds-body-secondary inline-flex items-center gap-2 py-3 transition-colors border-b-2 ${
                   isActive
                     ? 'border-[var(--cds-color-grey-975)] text-[var(--cds-color-grey-975)]'
                     : 'border-transparent text-[var(--cds-color-grey-600)] hover:text-[var(--cds-color-grey-975)]'
                 }`}
               >
                 {tab.label}
+                {tab.newBadge ? (
+                  <span
+                    className="rounded-[var(--cds-border-radius-100)] bg-[var(--cds-color-green-100)] px-2 py-0.5 font-semibold text-[var(--cds-color-green-700)]"
+                    style={{ fontSize: '10px', lineHeight: '14px' }}
+                  >
+                    New
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -643,6 +652,14 @@ export const MyLearning: React.FC<MyLearningProps> = ({
 
           {activeTab === 'skills' && (
             <EmptyTab icon="workspace_premium" title="Certificates & Badges" body="Your earned certificates and badges will appear here." />
+          )}
+
+          {activeTab === 'career-tools' && (
+            <EmptyTab
+              icon="work"
+              title="Career tools"
+              body="Resume helpers, interview prep, and job-market insights tailored to your goal will show up here."
+            />
           )}
         </div>
 
