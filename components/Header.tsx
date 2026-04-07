@@ -17,6 +17,52 @@ interface HeaderProps {
   careerTitle?: string;
 }
 
+function CareerPlanCircleProgress({ percent }: { percent: number }) {
+  const size = 64;
+  const stroke = 4;
+  const r = (size - stroke) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - percent / 100);
+
+  return (
+    <div
+      className="relative h-16 w-16 shrink-0"
+      role="progressbar"
+      aria-valuenow={percent}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Learning plan completion"
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          className="stroke-[var(--cds-color-white)]"
+        />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="stroke-[var(--cds-color-green-600)]"
+        />
+      </svg>
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-base font-bold tabular-nums text-[var(--cds-color-grey-975)]">
+        {percent}%
+      </span>
+    </div>
+  );
+}
+
 export const Header: React.FC<HeaderProps> = ({ 
   currentSP, 
   dailyGoalSP,
@@ -378,13 +424,114 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right User/Actions */}
       <div className="flex items-center gap-5 z-10">
         {isHomeView && careerTitle && (
-          <button
-            type="button"
-            onClick={() => onNavigate?.('dashboard')}
-            className="cds-body-secondary text-[var(--cds-color-grey-700)] mr-2 text-left hover:text-[var(--cds-color-blue-700)] hover:underline cursor-pointer transition-colors"
-          >
-            Career goal: <span className="underline">{careerTitle}</span>
-          </button>
+          <div className="group relative mr-2">
+            <button
+              type="button"
+              onClick={() => onNavigate?.('dashboard')}
+              className="cds-body-secondary cursor-pointer text-left text-[var(--cds-color-grey-700)] transition-colors hover:text-[var(--cds-color-blue-700)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cds-color-blue-700)] focus-visible:ring-offset-2"
+              aria-describedby="career-learning-plan-popover"
+            >
+              Career goal: <span className="underline">{careerTitle}</span>
+            </button>
+
+            <div
+              id="career-learning-plan-popover"
+              role="region"
+              aria-label={`${careerTitle} learning plan preview`}
+              className="pointer-events-none invisible absolute right-0 top-full z-50 w-[min(calc(100vw-2rem),22rem)] pt-2 opacity-0 transition-all duration-200 ease-out group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100"
+            >
+              <div className="pointer-events-auto rounded-[var(--cds-border-radius-200)] border border-[var(--cds-color-blue-100)] bg-[var(--cds-color-blue-25)] p-4 shadow-[var(--cds-elevation-level2)]">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Icons.Sparkles className="h-4 w-4 shrink-0 text-[var(--cds-color-blue-700)]" aria-hidden />
+                      <h3 className="cds-subtitle-sm font-semibold text-[var(--cds-color-grey-975)]">
+                        {careerTitle} Learning Plan
+                      </h3>
+                    </div>
+                    <ul className="flex flex-col gap-1.5 cds-body-tertiary text-[var(--cds-color-grey-600)]">
+                      <li className="flex items-center gap-2">
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--cds-color-blue-100)] text-[var(--cds-color-blue-700)]">
+                          <Icons.Check className="h-2.5 w-2.5" strokeWidth={3} aria-hidden />
+                        </span>
+                        <span>
+                          <span className="font-medium text-[var(--cds-color-grey-800)]">Role</span> · {careerTitle}
+                        </span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--cds-color-blue-100)] text-[var(--cds-color-blue-700)]">
+                          <Icons.Check className="h-2.5 w-2.5" strokeWidth={3} aria-hidden />
+                        </span>
+                        <span>
+                          <span className="font-medium text-[var(--cds-color-grey-800)]">Skills</span> · SQL, Python, Data
+                          Visualization
+                        </span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--cds-color-blue-100)] text-[var(--cds-color-blue-700)]">
+                          <Icons.Check className="h-2.5 w-2.5" strokeWidth={3} aria-hidden />
+                        </span>
+                        <span>
+                          <span className="font-medium text-[var(--cds-color-grey-800)]">Duration</span> · 1–3 months
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                  <CareerPlanCircleProgress percent={15} />
+                </div>
+
+                <div className="mb-4 space-y-2">
+                  {[
+                    { title: 'Master Basic SQL for Data Analysis', progress: 45 },
+                    { title: 'Develop Python Skills for Real-World Data', progress: 10 },
+                    { title: 'Create Impactful Data Visualizations', progress: 0 },
+                  ].map((mod) => (
+                    <div
+                      key={mod.title}
+                      className="rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-grey-100)] bg-[var(--cds-color-white)] p-3"
+                    >
+                      <p className="cds-body-secondary font-medium text-[var(--cds-color-grey-975)]">{mod.title}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div
+                          className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--cds-color-grey-100)]"
+                          role="progressbar"
+                          aria-valuenow={mod.progress}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${mod.title} progress`}
+                        >
+                          <div
+                            className="h-full rounded-full bg-[var(--cds-color-green-600)]"
+                            style={{ width: `${mod.progress}%` }}
+                          />
+                        </div>
+                        <span className="min-w-[2.75rem] shrink-0 text-right text-lg font-semibold tabular-nums leading-none text-[var(--cds-color-grey-800)]">
+                          {mod.progress}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.('dashboard')}
+                    className="w-full rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-blue-700)] bg-[var(--cds-color-white)] px-4 py-2.5 cds-body-secondary font-semibold text-[var(--cds-color-blue-700)] shadow-sm transition-colors hover:bg-[var(--cds-color-blue-25)] sm:w-auto cds-action-secondary"
+                  >
+                    Plan for specific job
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.('dashboard')}
+                    className="w-full rounded-[var(--cds-border-radius-100)] bg-[var(--cds-color-blue-700)] px-4 py-2.5 font-semibold text-[var(--cds-color-white)] shadow-sm transition-colors hover:bg-[var(--cds-color-blue-800)] sm:w-auto cds-action-secondary"
+                  >
+                    See learning plan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         {isHomeView && (
           <div className="flex items-center gap-4 text-[var(--cds-color-grey-500)] mr-2">

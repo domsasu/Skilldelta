@@ -3,6 +3,11 @@ import {
   SKILL_GAP_COPY,
   SKILL_GAP_FLOATING_PILLS,
   SKILL_GAP_HERO,
+  SKILL_GAP_ROLE_LINK_PREVIEW_DELAY_MS,
+  SKILL_GAP_ROLE_UPLOAD_FOCUS_NOW,
+  SKILL_GAP_ROLE_UPLOAD_OPPORTUNITIES,
+  SKILL_GAP_UPLOAD_PREVIEW_DELAY_MS,
+  SKILL_GAP_UPLOAD_PREVIEW_SKILLS,
 } from './skillGapConstants';
 import {
   analyzeSkillGap,
@@ -10,12 +15,37 @@ import {
   type SkillGapAnalysis,
 } from '../services/geminiService';
 
-type PanelId = 'found' | 'opportunities' | 'key' | 'relevant' | 'unusual';
+type PanelId = 'found' | 'opportunities';
+
+function GreyPulseListSkeleton({ statusText }: { statusText: string }) {
+  const widths = ['w-full', 'w-[94%]', 'w-[88%]', 'w-full', 'w-[76%]', 'w-[90%]'];
+  return (
+    <div className="space-y-2.5" role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">{statusText}</span>
+      {widths.map((tw, i) => (
+        <div
+          key={i}
+          className={`h-2.5 rounded-full bg-[var(--cds-color-grey-100)] animate-pulse ${tw}`}
+          style={{ animationDelay: `${i * 90}ms` }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function pickResumeFileFromList(files: FileList | null): File | null {
   if (!files?.length) return null;
   const list = Array.from(files);
   return list.find((f) => /\.(pdf|txt)$/i.test(f.name)) ?? list[0];
+}
+
+function isValidHttpsJobUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === 'https:' && Boolean(u.hostname);
+  } catch {
+    return false;
+  }
 }
 
 function CollapsiblePanel({
@@ -28,6 +58,9 @@ function CollapsiblePanel({
   onToggle,
   emptyMessage,
   children,
+  isLoading = false,
+  loadingStatusText,
+  collapsedFooter,
 }: {
   id: PanelId;
   title: string;
@@ -38,8 +71,13 @@ function CollapsiblePanel({
   onToggle: () => void;
   emptyMessage: string;
   children: React.ReactNode;
+  isLoading?: boolean;
+  loadingStatusText?: string;
+  /** Shown below the header row when collapsed (e.g. Found skills encouragement). */
+  collapsedFooter?: React.ReactNode;
 }) {
   const hasContent = count > 0;
+  const showCollapsedFooter = !expanded && !isLoading && hasContent && collapsedFooter != null;
   return (
     <div className="rounded-[var(--cds-border-radius-200)] border border-[var(--cds-color-grey-100)] bg-[var(--cds-color-white)] overflow-hidden">
       <button
@@ -47,13 +85,27 @@ function CollapsiblePanel({
         onClick={onToggle}
         className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--cds-color-grey-25)]"
         aria-expanded={expanded}
+        aria-busy={isLoading}
         aria-controls={`${id}-panel`}
         id={`${id}-heading`}
+        aria-describedby={showCollapsedFooter ? `${id}-collapsed-footer` : undefined}
       >
         <span
-          className={`rounded-[var(--cds-border-radius-400)] px-2 py-0.5 cds-body-secondary shrink-0 ${badgeClass}`}
+          className={`rounded-[var(--cds-border-radius-400)] px-2 py-0.5 cds-body-secondary shrink-0 ${badgeClass} ${isLoading ? 'min-w-[10rem]' : ''}`}
         >
-          {count} {title}
+          {isLoading ? (
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="inline-block h-3.5 w-14 shrink-0 rounded bg-[var(--cds-color-grey-200)] animate-pulse"
+                aria-hidden
+              />
+              <span className="cds-body-secondary">{title}</span>
+            </span>
+          ) : (
+            <>
+              {count} {title}
+            </>
+          )}
         </span>
         <span
           className="material-symbols-rounded ml-auto text-[var(--cds-color-grey-600)] shrink-0"
@@ -63,17 +115,28 @@ function CollapsiblePanel({
           {expanded ? 'expand_less' : 'expand_more'}
         </span>
       </button>
+      {showCollapsedFooter ? (
+        <p
+          id={`${id}-collapsed-footer`}
+          className="border-t border-[var(--cds-color-grey-100)] px-4 py-3 cds-body-secondary text-[var(--cds-color-grey-600)]"
+        >
+          {collapsedFooter}
+        </p>
+      ) : null}
       {expanded && (
         <div
           id={`${id}-panel`}
           role="region"
           aria-labelledby={`${id}-heading`}
+          aria-busy={isLoading}
           className="border-t border-[var(--cds-color-grey-100)] px-4 py-3"
         >
           {hint ? (
             <p className="cds-body-tertiary text-[var(--cds-color-grey-600)] mb-3">{hint}</p>
           ) : null}
-          {hasContent ? (
+          {isLoading ? (
+            <GreyPulseListSkeleton statusText={loadingStatusText ?? 'Loading'} />
+          ) : hasContent ? (
             children
           ) : (
             <p className="cds-body-secondary text-[var(--cds-color-grey-600)]">{emptyMessage}</p>
@@ -96,21 +159,141 @@ function SkillList({ items }: { items: string[] }) {
   );
 }
 
+function OpportunitiesRolePreviewBody({
+  focusNow,
+  opportunities,
+}: {
+  focusNow: readonly string[];
+  opportunities: readonly string[];
+}) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="cds-body-secondary mb-2 font-semibold text-[var(--cds-color-grey-975)]">
+          {SKILL_GAP_COPY.roleUploadFocusHeading}
+        </p>
+        <ul className="flex flex-col gap-2" role="list">
+          {focusNow.map((s, i) => (
+            <li
+              key={`focus-${i}-${s.slice(0, 24)}`}
+              role="listitem"
+              className="rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-green-200)] bg-[var(--cds-color-green-25)] px-3 py-2 cds-body-secondary font-semibold text-[var(--cds-color-grey-975)]"
+            >
+              {s}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <p className="cds-body-secondary mb-2 font-semibold text-[var(--cds-color-grey-975)]">
+          {SKILL_GAP_COPY.roleUploadAllHeading}
+        </p>
+        <SkillList items={[...opportunities]} />
+      </div>
+    </div>
+  );
+}
+
+const REDUCED_MOTION_MQ = '(prefers-reduced-motion: reduce)';
+
+/** Visible typewriter line; screen readers get the full string immediately via sr-only. */
+function TypewriterEncouragement({
+  text,
+  onComplete,
+  msPerChar = 26,
+}: {
+  text: string;
+  onComplete?: () => void;
+  msPerChar?: number;
+}) {
+  const [shown, setShown] = useState('');
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    setShown('');
+    if (!text) return;
+
+    const reduced =
+      typeof window !== 'undefined' && window.matchMedia(REDUCED_MOTION_MQ).matches;
+
+    if (reduced) {
+      setShown(text);
+      const id = window.requestAnimationFrame(() => {
+        onCompleteRef.current?.();
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+
+    let i = 0;
+    let timeoutId = 0;
+    let cancelled = false;
+
+    const step = () => {
+      if (cancelled) return;
+      i += 1;
+      setShown(text.slice(0, i));
+      if (i >= text.length) {
+        onCompleteRef.current?.();
+        return;
+      }
+      timeoutId = window.setTimeout(step, msPerChar);
+    };
+
+    timeoutId = window.setTimeout(step, msPerChar);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [text, msPerChar]);
+
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">{shown}</span>
+    </>
+  );
+}
+
+/** Wrapping skill chips for the Found skills panel (not one-per-line). */
+function FoundSkillTags({ items }: { items: string[] }) {
+  return (
+    <ul className="m-0 flex list-none flex-wrap gap-2 p-0" role="list">
+      {items.map((s, i) => (
+        <li key={`${i}-${s}`} role="listitem">
+          <span className="inline-flex max-w-full items-center rounded-full border border-[var(--cds-color-grey-200)] bg-[var(--cds-color-grey-25)] px-2.5 py-1 text-left cds-body-secondary text-[var(--cds-color-grey-975)]">
+            {s}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const SkillGapTool: React.FC = () => {
   const uploadModalTitleId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const extractPreviewTimerRef = useRef<number | null>(null);
+  const roleLinkPreviewTimerRef = useRef<number | null>(null);
 
   const [resumeText, setResumeText] = useState('');
   const [fileError, setFileError] = useState<string | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
-
+  const [foundSkillsUploadLoading, setFoundSkillsUploadLoading] = useState(false);
+  const [uploadPreviewFoundSkills, setUploadPreviewFoundSkills] = useState<string[] | null>(null);
   const [jobTitle, setJobTitle] = useState('');
 
-  const [jobUrl, setJobUrl] = useState('');
+  const [jobRoleLink, setJobRoleLink] = useState('');
+  const [roleLinkError, setRoleLinkError] = useState<string | null>(null);
+  const [roleLinkUploadBusy, setRoleLinkUploadBusy] = useState(false);
+  const [roleLinkPreview, setRoleLinkPreview] = useState<{
+    focus: readonly string[];
+    areas: readonly string[];
+  } | null>(null);
+
   const [jobDescription, setJobDescription] = useState('');
-  const [fetchBusy, setFetchBusy] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [analysis, setAnalysis] = useState<SkillGapAnalysis | null>(null);
   const [analyzeBusy, setAnalyzeBusy] = useState(false);
@@ -119,9 +302,6 @@ export const SkillGapTool: React.FC = () => {
   const [expanded, setExpanded] = useState<Record<PanelId, boolean>>({
     found: true,
     opportunities: true,
-    key: true,
-    relevant: true,
-    unusual: true,
   });
 
   const [toolExpanded, setToolExpanded] = useState(false);
@@ -137,6 +317,19 @@ export const SkillGapTool: React.FC = () => {
 
   const processResumeFile = useCallback(async (file: File) => {
     setFileError(null);
+    if (extractPreviewTimerRef.current != null) {
+      window.clearTimeout(extractPreviewTimerRef.current);
+      extractPreviewTimerRef.current = null;
+    }
+    if (roleLinkPreviewTimerRef.current != null) {
+      window.clearTimeout(roleLinkPreviewTimerRef.current);
+      roleLinkPreviewTimerRef.current = null;
+    }
+    setRoleLinkPreview(null);
+    setRoleLinkUploadBusy(false);
+    setUploadPreviewFoundSkills(null);
+    setFoundSkillsUploadLoading(true);
+    setExpanded((prev) => ({ ...prev, found: true }));
     setFileBusy(true);
     try {
       const { extractTextFromResumeFile } = await import('../services/extractResumeText');
@@ -144,7 +337,13 @@ export const SkillGapTool: React.FC = () => {
       setResumeText(text);
       setUploadModalOpen(false);
       setDropActive(false);
+      extractPreviewTimerRef.current = window.setTimeout(() => {
+        setUploadPreviewFoundSkills([...SKILL_GAP_UPLOAD_PREVIEW_SKILLS]);
+        setFoundSkillsUploadLoading(false);
+        extractPreviewTimerRef.current = null;
+      }, SKILL_GAP_UPLOAD_PREVIEW_DELAY_MS);
     } catch (err) {
+      setFoundSkillsUploadLoading(false);
       setFileError(err instanceof Error ? err.message : 'Could not read file');
     } finally {
       setFileBusy(false);
@@ -206,36 +405,29 @@ export const SkillGapTool: React.FC = () => {
     }
   }, []);
 
-  const fetchJobPosting = useCallback(async () => {
-    const url = jobUrl.trim();
-    if (!url) {
-      setFetchError('Enter a job posting URL');
+  const uploadRoleFromLink = useCallback(() => {
+    const raw = jobRoleLink.trim();
+    if (!isValidHttpsJobUrl(raw)) {
+      setRoleLinkError(SKILL_GAP_COPY.roleLinkUrlInvalid);
       return;
     }
-    setFetchError(null);
-    setFetchBusy(true);
-    try {
-      const res = await fetch('/api/fetch-job-posting', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-      const data = (await res.json()) as { text?: string; titleGuess?: string | null; error?: string };
-      if (!res.ok) {
-        throw new Error(data.error || `Request failed (${res.status})`);
-      }
-      if (data.text) {
-        setJobDescription((prev) => (prev.trim() ? `${prev.trim()}\n\n---\n${data.text}` : data.text));
-      }
-      if (data.titleGuess && !jobTitle.trim()) {
-        setJobTitle(data.titleGuess);
-      }
-    } catch (err) {
-      setFetchError(err instanceof Error ? err.message : 'Could not fetch URL');
-    } finally {
-      setFetchBusy(false);
+    setRoleLinkError(null);
+    if (roleLinkPreviewTimerRef.current != null) {
+      window.clearTimeout(roleLinkPreviewTimerRef.current);
+      roleLinkPreviewTimerRef.current = null;
     }
-  }, [jobUrl, jobTitle]);
+    setRoleLinkUploadBusy(true);
+    setRoleLinkPreview(null);
+    setExpanded((prev) => ({ ...prev, opportunities: true }));
+    roleLinkPreviewTimerRef.current = window.setTimeout(() => {
+      setRoleLinkPreview({
+        focus: SKILL_GAP_ROLE_UPLOAD_FOCUS_NOW,
+        areas: SKILL_GAP_ROLE_UPLOAD_OPPORTUNITIES,
+      });
+      setRoleLinkUploadBusy(false);
+      roleLinkPreviewTimerRef.current = null;
+    }, SKILL_GAP_ROLE_LINK_PREVIEW_DELAY_MS);
+  }, [jobRoleLink]);
 
   const runAnalyze = useCallback(async () => {
     setAnalyzeError(null);
@@ -247,7 +439,7 @@ export const SkillGapTool: React.FC = () => {
     const jt = jobTitle.trim();
     const jd = jobDescription.trim();
     if (!jt && jd.length < 40) {
-      setAnalyzeError('Paste a job description or fetch a posting from URL.');
+      setAnalyzeError('Paste a job description (expand Find role if needed).');
       return;
     }
     if (!geminiReady) {
@@ -256,6 +448,12 @@ export const SkillGapTool: React.FC = () => {
     }
     setAnalyzeBusy(true);
     setAnalysis(null);
+    if (roleLinkPreviewTimerRef.current != null) {
+      window.clearTimeout(roleLinkPreviewTimerRef.current);
+      roleLinkPreviewTimerRef.current = null;
+    }
+    setRoleLinkPreview(null);
+    setRoleLinkUploadBusy(false);
     try {
       const result = await analyzeSkillGap({
         resumeText: r,
@@ -267,6 +465,13 @@ export const SkillGapTool: React.FC = () => {
         return;
       }
       setAnalysis(result);
+      setUploadPreviewFoundSkills(null);
+      if (roleLinkPreviewTimerRef.current != null) {
+        window.clearTimeout(roleLinkPreviewTimerRef.current);
+        roleLinkPreviewTimerRef.current = null;
+      }
+      setRoleLinkPreview(null);
+      setRoleLinkUploadBusy(false);
     } finally {
       setAnalyzeBusy(false);
     }
@@ -296,9 +501,71 @@ export const SkillGapTool: React.FC = () => {
     return () => document.removeEventListener('keydown', onKey);
   }, [uploadModalOpen, closeUploadModal]);
 
+  useEffect(() => {
+    return () => {
+      if (extractPreviewTimerRef.current != null) {
+        window.clearTimeout(extractPreviewTimerRef.current);
+      }
+      if (roleLinkPreviewTimerRef.current != null) {
+        window.clearTimeout(roleLinkPreviewTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (resumeText.trim().length > 0) return;
+    if (extractPreviewTimerRef.current != null) {
+      window.clearTimeout(extractPreviewTimerRef.current);
+      extractPreviewTimerRef.current = null;
+    }
+    setUploadPreviewFoundSkills(null);
+    setFoundSkillsUploadLoading(false);
+  }, [resumeText]);
+
+  const foundSkillsForList = useMemo(() => {
+    const fromAnalysis = analysis?.foundSkills;
+    if (fromAnalysis && fromAnalysis.length > 0) return fromAnalysis;
+    return uploadPreviewFoundSkills ?? [];
+  }, [analysis?.foundSkills, uploadPreviewFoundSkills]);
+
+  const showUploadPreviewLead =
+    Boolean(uploadPreviewFoundSkills?.length) &&
+    !(analysis?.foundSkills && analysis.foundSkills.length > 0);
+
+  const foundSkillsCollapsedFooter = useMemo(() => {
+    const n = foundSkillsForList.length;
+    if (n < 1) return undefined;
+    return n === 1
+      ? SKILL_GAP_COPY.foundSkillsCollapsedEncouragementOne
+      : SKILL_GAP_COPY.foundSkillsCollapsedEncouragementMany.replace('{count}', String(n));
+  }, [foundSkillsForList.length]);
+
+  const prevFoundSkillsCountRef = useRef(0);
+
+  useEffect(() => {
+    const n = foundSkillsForList.length;
+    const prev = prevFoundSkillsCountRef.current;
+    if (!foundSkillsUploadLoading && n > 0 && prev === 0) {
+      setExpanded((p) => ({ ...p, found: false }));
+    }
+    prevFoundSkillsCountRef.current = n;
+  }, [foundSkillsForList.length, foundSkillsUploadLoading]);
+
+  const opportunitiesForList = useMemo(() => {
+    return analysis?.skillOpportunities ?? [];
+  }, [analysis?.skillOpportunities]);
+
+  const opportunitiesBadgeCount = useMemo(() => {
+    if (analysis?.skillOpportunities && analysis.skillOpportunities.length > 0) {
+      return analysis.skillOpportunities.length;
+    }
+    if (roleLinkPreview) {
+      return roleLinkPreview.focus.length + roleLinkPreview.areas.length;
+    }
+    return 0;
+  }, [analysis?.skillOpportunities, roleLinkPreview]);
+
   const showTitleDisclaimer = jobTitle.trim().length > 0 && jobDescription.trim().length < 80;
-  /** Match runAnalyze minimum so these panels only appear once resume is ready to analyze. */
-  const showResumeDetailPanels = resumeText.trim().length >= 40;
 
   return (
     <section
@@ -442,7 +709,7 @@ export const SkillGapTool: React.FC = () => {
               id="skill-gap-job-details-heading"
               className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--cds-color-grey-25)]"
               aria-expanded={jobDetailsOpen}
-              aria-controls="skill-gap-job-details-panel"
+              aria-controls="skill-gap-job-details-more"
               onClick={() => setJobDetailsOpen((o) => !o)}
             >
               <span className="cds-subtitle-md text-[var(--cds-color-grey-975)]">
@@ -456,47 +723,54 @@ export const SkillGapTool: React.FC = () => {
                 {jobDetailsOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
-            {jobDetailsOpen ? (
-              <div
-                id="skill-gap-job-details-panel"
-                role="region"
-                aria-labelledby="skill-gap-job-details-heading"
-                className="space-y-4 border-t border-[var(--cds-color-grey-100)] px-4 py-4"
-              >
-                <div className="space-y-1.5">
-                  <label htmlFor="skill-gap-job-url" className="cds-body-secondary text-[var(--cds-color-grey-975)]">
-                    {SKILL_GAP_COPY.jobUrlLabel}
-                  </label>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="skill-gap-job-url"
-                      type="url"
-                      inputMode="url"
-                      value={jobUrl}
-                      onChange={(e) => setJobUrl(e.target.value)}
-                      placeholder={SKILL_GAP_COPY.jobUrlPlaceholder}
-                      className="min-w-0 flex-1 rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-grey-100)] bg-[var(--cds-color-white)] px-3 py-2 cds-body-secondary text-[var(--cds-color-grey-975)] focus:border-[var(--cds-color-blue-700)] focus:outline-none focus:ring-1 focus:ring-[var(--cds-color-blue-700)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={fetchJobPosting}
-                      disabled={fetchBusy}
-                      className="shrink-0 rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-blue-700)] px-4 py-2 font-semibold text-[var(--cds-color-blue-700)] hover:bg-[var(--cds-color-blue-25)] disabled:opacity-50 cds-action-secondary"
-                    >
-                      {fetchBusy ? 'Fetching…' : SKILL_GAP_COPY.fetchPosting}
-                    </button>
-                  </div>
-                  {fetchError ? (
-                    <p className="cds-body-tertiary text-[var(--cds-color-red-700)]" role="alert">
-                      {fetchError}
-                    </p>
-                  ) : (
-                    <p className="cds-body-tertiary text-[var(--cds-color-grey-600)]">
-                      Many sites block automated fetches — paste the description if this fails.
-                    </p>
-                  )}
+            <div
+              id="skill-gap-job-details-panel"
+              role="region"
+              aria-labelledby="skill-gap-job-details-heading"
+              className="border-t border-[var(--cds-color-grey-100)] px-4 pb-3 pt-3"
+            >
+              <div className="space-y-1.5">
+                <label htmlFor="skill-gap-job-role-link" className="cds-body-secondary text-[var(--cds-color-grey-975)]">
+                  {SKILL_GAP_COPY.jobRoleLinkLabel}
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    id="skill-gap-job-role-link"
+                    type="url"
+                    inputMode="url"
+                    value={jobRoleLink}
+                    onChange={(e) => {
+                      setJobRoleLink(e.target.value);
+                      if (roleLinkError) setRoleLinkError(null);
+                    }}
+                    placeholder={SKILL_GAP_COPY.jobRoleLinkPlaceholder}
+                    className="min-w-0 flex-1 rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-grey-100)] bg-[var(--cds-color-white)] px-3 py-2 cds-body-secondary text-[var(--cds-color-grey-975)] placeholder:text-[var(--cds-color-grey-400)] focus:border-[var(--cds-color-blue-700)] focus:outline-none focus:ring-1 focus:ring-[var(--cds-color-blue-700)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={uploadRoleFromLink}
+                    disabled={roleLinkUploadBusy}
+                    className="shrink-0 rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-blue-700)] bg-[var(--cds-color-white)] px-4 py-2 font-semibold text-[var(--cds-color-blue-700)] shadow-sm transition-colors hover:bg-[var(--cds-color-blue-25)] disabled:opacity-50 cds-action-secondary"
+                  >
+                    {roleLinkUploadBusy ? 'Working…' : SKILL_GAP_COPY.uploadRoleButton}
+                  </button>
                 </div>
+                {roleLinkError ? (
+                  <p className="cds-body-tertiary text-[var(--cds-color-red-700)]" role="alert">
+                    {roleLinkError}
+                  </p>
+                ) : (
+                  <p className="cds-body-tertiary text-[var(--cds-color-grey-600)]">
+                    {SKILL_GAP_COPY.jobRoleLinkHint}
+                  </p>
+                )}
+              </div>
 
+              <div
+                id="skill-gap-job-details-more"
+                hidden={!jobDetailsOpen}
+                className={jobDetailsOpen ? 'mt-4 space-y-4 border-t border-[var(--cds-color-grey-100)] pt-4' : undefined}
+              >
                 <div className="space-y-1.5">
                   <label htmlFor="skill-gap-jd" className="cds-body-secondary text-[var(--cds-color-grey-975)]">
                     {SKILL_GAP_COPY.jobDescriptionLabel}
@@ -541,76 +815,58 @@ export const SkillGapTool: React.FC = () => {
                   {analyzeBusy ? 'Analyzing…' : SKILL_GAP_COPY.analyze}
                 </button>
               </div>
-            ) : null}
+            </div>
           </div>
 
           <div className="space-y-3 pt-2">
             <CollapsiblePanel
               id="found"
               title={SKILL_GAP_COPY.foundSkillsTitle}
-              count={analysis?.foundSkills.length ?? 0}
-              badgeClass="bg-[var(--cds-color-grey-100)] text-[var(--cds-color-grey-975)]"
+              count={foundSkillsForList.length}
+              badgeClass="bg-[var(--cds-color-green-100)] text-[var(--cds-color-green-700)]"
               expanded={expanded.found}
               onToggle={() => toggle('found')}
               emptyMessage={SKILL_GAP_COPY.foundSkillsEmpty}
+              isLoading={foundSkillsUploadLoading}
+              loadingStatusText={SKILL_GAP_COPY.foundSkillsUploadLoadingStatus}
+              collapsedFooter={
+                foundSkillsCollapsedFooter ? (
+                  <TypewriterEncouragement text={foundSkillsCollapsedFooter} />
+                ) : undefined
+              }
             >
-              <SkillList items={analysis?.foundSkills ?? []} />
+              {showUploadPreviewLead ? (
+                <>
+                  <p className="cds-body-secondary mb-2 font-medium text-[var(--cds-color-grey-975)]">
+                    {SKILL_GAP_COPY.foundSkillsUploadPreviewLead}
+                  </p>
+                  <FoundSkillTags items={foundSkillsForList} />
+                </>
+              ) : (
+                <FoundSkillTags items={foundSkillsForList} />
+              )}
             </CollapsiblePanel>
 
             <CollapsiblePanel
               id="opportunities"
               title={SKILL_GAP_COPY.opportunitiesTitle}
-              count={analysis?.skillOpportunities.length ?? 0}
+              count={opportunitiesBadgeCount}
               badgeClass="border border-[var(--cds-color-blue-200)] bg-[var(--cds-color-blue-25)] text-[var(--cds-color-grey-975)]"
               expanded={expanded.opportunities}
               onToggle={() => toggle('opportunities')}
               emptyMessage={SKILL_GAP_COPY.opportunitiesEmpty}
+              isLoading={roleLinkUploadBusy}
+              loadingStatusText={SKILL_GAP_COPY.roleUploadLoadingStatus}
             >
-              <SkillList items={analysis?.skillOpportunities ?? []} />
+              {opportunitiesForList.length > 0 ? (
+                <SkillList items={opportunitiesForList} />
+              ) : roleLinkPreview ? (
+                <OpportunitiesRolePreviewBody
+                  focusNow={roleLinkPreview.focus}
+                  opportunities={roleLinkPreview.areas}
+                />
+              ) : null}
             </CollapsiblePanel>
-
-            {showResumeDetailPanels ? (
-              <>
-                <CollapsiblePanel
-                  id="key"
-                  title={SKILL_GAP_COPY.keySkillsTitle}
-                  count={analysis?.keySkills.length ?? 0}
-                  badgeClass="bg-[var(--cds-color-green-100)] text-[var(--cds-color-green-800)]"
-                  hint={SKILL_GAP_COPY.keySkillsHint}
-                  expanded={expanded.key}
-                  onToggle={() => toggle('key')}
-                  emptyMessage="Run analysis to see key skills from your resume for this role."
-                >
-                  <SkillList items={analysis?.keySkills ?? []} />
-                </CollapsiblePanel>
-
-                <CollapsiblePanel
-                  id="relevant"
-                  title={SKILL_GAP_COPY.relevantSkillsTitle}
-                  count={analysis?.relevantSkills.length ?? 0}
-                  badgeClass="bg-[var(--cds-color-grey-100)] text-[var(--cds-color-grey-975)]"
-                  hint={SKILL_GAP_COPY.relevantSkillsHint}
-                  expanded={expanded.relevant}
-                  onToggle={() => toggle('relevant')}
-                  emptyMessage="Run analysis to see secondary relevant skills."
-                >
-                  <SkillList items={analysis?.relevantSkills ?? []} />
-                </CollapsiblePanel>
-
-                <CollapsiblePanel
-                  id="unusual"
-                  title={SKILL_GAP_COPY.unusualSkillsTitle}
-                  count={analysis?.unusualResumeSkills.length ?? 0}
-                  badgeClass="bg-[var(--cds-color-yellow-25)] text-[var(--cds-color-grey-975)] border border-[var(--cds-color-yellow-200)]"
-                  hint={SKILL_GAP_COPY.unusualSkillsHint}
-                  expanded={expanded.unusual}
-                  onToggle={() => toggle('unusual')}
-                  emptyMessage="Run analysis to see resume skills that are less typical for this role."
-                >
-                  <SkillList items={analysis?.unusualResumeSkills ?? []} />
-                </CollapsiblePanel>
-              </>
-            ) : null}
 
             {analysis?.summaryNote ? (
               <p className="cds-body-tertiary text-[var(--cds-color-grey-600)] border-t border-[var(--cds-color-grey-100)] pt-3">

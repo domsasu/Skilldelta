@@ -145,6 +145,35 @@ function cohortStatusFullText(cohort: CourseCohort): string {
   return `Trending in ${cohort.hashtag}`;
 }
 
+/** Horizontal “Master SQL…” course rail — used twice on Home (above and below In-demand skills). */
+function CourseRecommendationsRail() {
+  return (
+    <div className="animate-widget-slide-up-content">
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="cds-subtitle-lg text-[var(--cds-color-grey-975)]">
+          Master SQL as a <span className="underline">data analyst</span>
+        </h2>
+        <button className="flex items-center gap-1 cds-action-secondary text-[var(--cds-color-blue-700)] hover:underline">
+          <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>auto_awesome</span>
+          Edit
+        </button>
+      </div>
+
+      <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+        {recommendedCourses.map((course) => (
+          <RecommendedCourseCard key={course.id} course={course} />
+        ))}
+      </div>
+
+      <div className="flex gap-2 mt-4">
+        <div className="w-6 h-2 bg-[var(--cds-color-grey-975)] rounded-full" />
+        <div className="w-2 h-2 bg-[var(--cds-color-grey-200)] rounded-full" />
+        <div className="w-2 h-2 bg-[var(--cds-color-grey-200)] rounded-full" />
+      </div>
+    </div>
+  );
+}
+
 const COHORT_LINE_TYPE_MS = 32;
 
 function RecommendedCourseCard({
@@ -860,30 +889,7 @@ export const Home: React.FC<HomeProps> = ({
         <SkillGapTool />
 
         {/* Course Recommendations - loads in after top section */}
-        <div className="animate-widget-slide-up-content">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="cds-subtitle-lg text-[var(--cds-color-grey-975)]">
-              Master SQL as a <span className="underline">data analyst</span>
-            </h2>
-            <button className="flex items-center gap-1 cds-action-secondary text-[var(--cds-color-blue-700)] hover:underline">
-              <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>auto_awesome</span>
-              Edit
-            </button>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-            {recommendedCourses.map((course) => (
-              <RecommendedCourseCard key={course.id} course={course} />
-            ))}
-          </div>
-
-          {/* Pagination dots */}
-          <div className="flex gap-2 mt-4">
-            <div className="w-6 h-2 bg-[var(--cds-color-grey-975)] rounded-full"></div>
-            <div className="w-2 h-2 bg-[var(--cds-color-grey-200)] rounded-full"></div>
-            <div className="w-2 h-2 bg-[var(--cds-color-grey-200)] rounded-full"></div>
-          </div>
-        </div>
+        <CourseRecommendationsRail />
 
         {/* Trending Now */}
         <div>
@@ -1007,6 +1013,8 @@ export const Home: React.FC<HomeProps> = ({
             </button>
           </div>
         </div>
+
+        <CourseRecommendationsRail />
 
         {/* Leaderboard: collapsed strip + full view in drawer */}
         <HomeLeaderboard selectedCohort={selectedCohort} onSelectCohort={setSelectedCohort} />
