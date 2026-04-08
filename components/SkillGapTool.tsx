@@ -4,8 +4,8 @@ import {
   SKILL_GAP_FLOATING_PILLS,
   SKILL_GAP_HERO,
   SKILL_GAP_ROLE_LINK_PREVIEW_DELAY_MS,
-  SKILL_GAP_ROLE_UPLOAD_FOCUS_NOW,
-  SKILL_GAP_ROLE_UPLOAD_OPPORTUNITIES,
+  SKILL_GAP_ROLE_UPLOAD_FOCUS,
+  SKILL_GAP_ROLE_UPLOAD_OTHER,
   SKILL_GAP_UPLOAD_PREVIEW_DELAY_MS,
   SKILL_GAP_UPLOAD_PREVIEW_SKILLS,
 } from './skillGapConstants';
@@ -14,6 +14,8 @@ import {
   isGeminiConfigured,
   type SkillGapAnalysis,
 } from '../services/geminiService';
+import { getCourseraShortCoursesForPrioritySkill } from './rolePriorityCourseraCourses';
+import { TrendingCourseColumn } from './TrendingCourseColumn';
 
 type PanelId = 'found' | 'opportunities';
 
@@ -147,49 +149,109 @@ function CollapsiblePanel({
   );
 }
 
-function SkillList({ items }: { items: string[] }) {
+/** Wrapping skill chips (Found skills + analyzed Skill opportunities). */
+function FoundSkillTags({ items }: { items: string[] }) {
   return (
-    <ul className="flex flex-col gap-1.5">
-      {items.map((s) => (
-        <li key={s} className="cds-body-secondary text-[var(--cds-color-grey-975)] pl-1">
-          {s}
+    <ul className="m-0 flex list-none flex-wrap gap-2 p-0" role="list">
+      {items.map((s, i) => (
+        <li key={`${i}-${s}`} role="listitem">
+          <span className="inline-flex max-w-full items-center rounded-full border border-[var(--cds-color-grey-200)] bg-[var(--cds-color-grey-25)] px-2.5 py-1 text-left cds-body-secondary text-[var(--cds-color-grey-975)]">
+            {s}
+          </span>
         </li>
       ))}
     </ul>
   );
 }
 
-function OpportunitiesRolePreviewBody({
-  focusNow,
-  opportunities,
+/** Job-link preview pills: green for secondary group, caution yellow for priority focus. */
+function RoleLinkOpportunityTags({
+  items,
+  variant = 'green',
+  selectedIndex,
+  onSelectIndex,
 }: {
-  focusNow: readonly string[];
-  opportunities: readonly string[];
+  items: readonly string[];
+  variant?: 'green' | 'caution';
+  /** When set with onSelectIndex, pills are buttons that drive the trending course column. */
+  selectedIndex?: number;
+  onSelectIndex?: (index: number) => void;
+}) {
+  const chipTone =
+    variant === 'caution'
+      ? 'border-[var(--cds-color-yellow-200)] bg-[var(--cds-color-yellow-25)]'
+      : 'border-[var(--cds-color-green-200)] bg-[var(--cds-color-green-25)]';
+  const selectedStroke =
+    variant === 'caution'
+      ? 'border-2 border-[var(--cds-color-yellow-900)]'
+      : 'border-2 border-[var(--cds-color-green-800)]';
+  const interactive =
+    onSelectIndex != null
+      ? `cursor-pointer transition-[border-color,background-color] hover:bg-[var(--cds-color-yellow-50)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+          variant === 'caution'
+            ? 'focus-visible:outline-[var(--cds-color-yellow-900)]'
+            : 'focus-visible:outline-[var(--cds-color-blue-700)]'
+        }`
+      : '';
+
+  return (
+    <ul className="m-0 flex list-none flex-wrap gap-2 p-0" role="list">
+      {items.map((s, i) => {
+        const selected = selectedIndex === i;
+        const chipClass = `inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-left cds-body-secondary text-[var(--cds-color-grey-975)] ${chipTone} ${interactive} ${selected ? selectedStroke : ''}`;
+
+        return (
+          <li key={`${i}-${s}`} role="listitem">
+            {onSelectIndex != null ? (
+              <button
+                type="button"
+                className={chipClass}
+                aria-pressed={selected}
+                onClick={() => onSelectIndex(i)}
+              >
+                {s}
+              </button>
+            ) : (
+              <span className={chipClass}>{s}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function RoleLinkPrioritySkillsPreviewSection({
+  focus,
+  selectedPriorityIndex,
+  onSelectPriorityIndex,
+}: {
+  focus: readonly string[];
+  selectedPriorityIndex: number;
+  onSelectPriorityIndex: (index: number) => void;
 }) {
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="cds-body-secondary mb-2 font-semibold text-[var(--cds-color-grey-975)]">
-          {SKILL_GAP_COPY.roleUploadFocusHeading}
-        </p>
-        <ul className="flex flex-col gap-2" role="list">
-          {focusNow.map((s, i) => (
-            <li
-              key={`focus-${i}-${s.slice(0, 24)}`}
-              role="listitem"
-              className="rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-green-200)] bg-[var(--cds-color-green-25)] px-3 py-2 cds-body-secondary font-semibold text-[var(--cds-color-grey-975)]"
-            >
-              {s}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div>
-        <p className="cds-body-secondary mb-2 font-semibold text-[var(--cds-color-grey-975)]">
-          {SKILL_GAP_COPY.roleUploadAllHeading}
-        </p>
-        <SkillList items={[...opportunities]} />
-      </div>
+    <div>
+      <p className="cds-body-secondary mb-2 font-semibold text-[var(--cds-color-grey-975)]">
+        {SKILL_GAP_COPY.roleLinkOpportunitiesExpandedLead}
+      </p>
+      <RoleLinkOpportunityTags
+        items={focus}
+        variant="caution"
+        selectedIndex={selectedPriorityIndex}
+        onSelectIndex={onSelectPriorityIndex}
+      />
+    </div>
+  );
+}
+
+function RoleLinkOtherSkillAreasPreviewSection({ other }: { other: readonly string[] }) {
+  return (
+    <div>
+      <p className="cds-body-secondary mb-2 font-semibold text-[var(--cds-color-grey-975)]">
+        {SKILL_GAP_COPY.roleLinkOtherSkillAreasLead}
+      </p>
+      <RoleLinkOpportunityTags items={other} variant="caution" />
     </div>
   );
 }
@@ -256,22 +318,17 @@ function TypewriterEncouragement({
   );
 }
 
-/** Wrapping skill chips for the Found skills panel (not one-per-line). */
-function FoundSkillTags({ items }: { items: string[] }) {
-  return (
-    <ul className="m-0 flex list-none flex-wrap gap-2 p-0" role="list">
-      {items.map((s, i) => (
-        <li key={`${i}-${s}`} role="listitem">
-          <span className="inline-flex max-w-full items-center rounded-full border border-[var(--cds-color-grey-200)] bg-[var(--cds-color-grey-25)] px-2.5 py-1 text-left cds-body-secondary text-[var(--cds-color-grey-975)]">
-            {s}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+export type SkillGapToolProps = {
+  /** Increment (e.g. from Header) to scroll into view and expand the full tool. */
+  expandRequestToken?: number;
+  /** When true, render the full tool immediately (e.g. My Learning → Career tools). */
+  defaultExpanded?: boolean;
+};
 
-export const SkillGapTool: React.FC = () => {
+export const SkillGapTool: React.FC<SkillGapToolProps> = ({
+  expandRequestToken = 0,
+  defaultExpanded = false,
+}) => {
   const uploadModalTitleId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -290,8 +347,10 @@ export const SkillGapTool: React.FC = () => {
   const [roleLinkUploadBusy, setRoleLinkUploadBusy] = useState(false);
   const [roleLinkPreview, setRoleLinkPreview] = useState<{
     focus: readonly string[];
-    areas: readonly string[];
+    other: readonly string[];
   } | null>(null);
+  /** Which priority focus skill drives #skill-gap-trending-most-popular (chips + heading cycle). */
+  const [rolePrioritySkillIndex, setRolePrioritySkillIndex] = useState(0);
 
   const [jobDescription, setJobDescription] = useState('');
 
@@ -304,16 +363,53 @@ export const SkillGapTool: React.FC = () => {
     opportunities: true,
   });
 
-  const [toolExpanded, setToolExpanded] = useState(false);
+  const [toolExpanded, setToolExpanded] = useState(defaultExpanded);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!expandRequestToken) return;
+    setToolExpanded(true);
+    const raf = window.requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [expandRequestToken]);
+
+  useEffect(() => {
+    setRolePrioritySkillIndex(0);
+  }, [roleLinkPreview]);
+
+  useEffect(() => {
+    const len = roleLinkPreview?.focus.length ?? 0;
+    if (len < 1) return;
+    setRolePrioritySkillIndex((i) => Math.min(i, len - 1));
+  }, [roleLinkPreview?.focus.length]);
 
   const geminiReady = useMemo(() => isGeminiConfigured(), []);
 
   const toggle = useCallback((id: PanelId) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
+
+  const selectRolePrioritySkill = useCallback((index: number) => {
+    setRolePrioritySkillIndex(index);
+    window.requestAnimationFrame(() => {
+      document.getElementById('skill-gap-trending-most-popular')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    });
+  }, []);
+
+  const cycleRolePrioritySkill = useCallback(() => {
+    setRolePrioritySkillIndex((i) => {
+      const len = roleLinkPreview?.focus.length ?? 0;
+      if (len < 1) return 0;
+      return (i + 1) % len;
+    });
+  }, [roleLinkPreview]);
 
   const processResumeFile = useCallback(async (file: File) => {
     setFileError(null);
@@ -418,13 +514,14 @@ export const SkillGapTool: React.FC = () => {
     }
     setRoleLinkUploadBusy(true);
     setRoleLinkPreview(null);
-    setExpanded((prev) => ({ ...prev, opportunities: true }));
+    setExpanded((prev) => ({ ...prev, opportunities: false }));
     roleLinkPreviewTimerRef.current = window.setTimeout(() => {
       setRoleLinkPreview({
-        focus: SKILL_GAP_ROLE_UPLOAD_FOCUS_NOW,
-        areas: SKILL_GAP_ROLE_UPLOAD_OPPORTUNITIES,
+        focus: SKILL_GAP_ROLE_UPLOAD_FOCUS,
+        other: SKILL_GAP_ROLE_UPLOAD_OTHER,
       });
       setRoleLinkUploadBusy(false);
+      setExpanded((prev) => ({ ...prev, opportunities: false }));
       roleLinkPreviewTimerRef.current = null;
     }, SKILL_GAP_ROLE_LINK_PREVIEW_DELAY_MS);
   }, [jobRoleLink]);
@@ -555,22 +652,28 @@ export const SkillGapTool: React.FC = () => {
     return analysis?.skillOpportunities ?? [];
   }, [analysis?.skillOpportunities]);
 
+  const roleLinkPreviewCount = useMemo(() => {
+    if (!roleLinkPreview) return 0;
+    return roleLinkPreview.focus.length + roleLinkPreview.other.length;
+  }, [roleLinkPreview]);
+
   const opportunitiesBadgeCount = useMemo(() => {
     if (analysis?.skillOpportunities && analysis.skillOpportunities.length > 0) {
       return analysis.skillOpportunities.length;
     }
-    if (roleLinkPreview) {
-      return roleLinkPreview.focus.length + roleLinkPreview.areas.length;
+    if (roleLinkPreviewCount > 0) {
+      return roleLinkPreviewCount;
     }
     return 0;
-  }, [analysis?.skillOpportunities, roleLinkPreview]);
+  }, [analysis?.skillOpportunities, roleLinkPreviewCount]);
 
   const showTitleDisclaimer = jobTitle.trim().length > 0 && jobDescription.trim().length < 80;
 
   return (
     <section
+      id="skill-gap-tool"
       ref={sectionRef}
-      className={`bg-[var(--cds-color-white)] border border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-200)] overflow-hidden hover:shadow-[var(--cds-elevation-level2)] transition-shadow p-4 sm:p-5 lg:p-6 ${
+      className={`scroll-mt-24 bg-[var(--cds-color-white)] border border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-200)] overflow-hidden hover:shadow-[var(--cds-elevation-level2)] transition-shadow p-4 sm:p-5 lg:p-6 ${
         !toolExpanded ? 'lg:flex lg:h-[300px] lg:min-h-0 lg:flex-col' : ''
       }`}
       aria-labelledby="skill-gap-main-heading"
@@ -604,24 +707,26 @@ export const SkillGapTool: React.FC = () => {
                 alt={SKILL_GAP_HERO.imageAlt}
                 className="absolute inset-0 h-full w-full object-cover grayscale"
               />
-              {SKILL_GAP_FLOATING_PILLS.map((pill) => (
-                <span
-                  key={pill.label}
-                  className={`pointer-events-none absolute max-w-[min(42%,11rem)] rounded-full px-2.5 py-1 text-center text-xs font-semibold shadow-[var(--cds-elevation-level1)] sm:text-sm ${
-                    pill.tone === 'peach'
-                      ? 'bg-[#ffd6c9] text-[var(--cds-color-grey-975)]'
-                      : 'bg-[#c8e8f0] text-[var(--cds-color-grey-975)]'
-                  }`}
-                  style={{
-                    ...(pill.top != null ? { top: pill.top } : {}),
-                    ...(pill.left != null ? { left: pill.left } : {}),
-                    ...(pill.right != null ? { right: pill.right } : {}),
-                    ...(pill.bottom != null ? { bottom: pill.bottom } : {}),
-                  }}
-                >
-                  {pill.label}
-                </span>
-              ))}
+              {SKILL_GAP_FLOATING_PILLS.map((pill) => {
+                const toneClasses =
+                  pill.tone === 'yellow'
+                    ? 'border-[var(--cds-color-yellow-200)] bg-[var(--cds-color-yellow-100)] text-[var(--cds-color-yellow-800)]'
+                    : 'border-[var(--cds-color-blue-200)] bg-[var(--cds-color-blue-25)] text-[var(--cds-color-grey-975)]';
+                return (
+                  <span
+                    key={pill.label}
+                    className={`pointer-events-none absolute max-w-[min(42%,11rem)] rounded-full border px-2.5 py-1 text-center text-xs font-semibold shadow-[var(--cds-elevation-level1)] sm:text-sm ${toneClasses}`}
+                    style={{
+                      ...(pill.top != null ? { top: pill.top } : {}),
+                      ...(pill.left != null ? { left: pill.left } : {}),
+                      ...(pill.right != null ? { right: pill.right } : {}),
+                      ...(pill.bottom != null ? { bottom: pill.bottom } : {}),
+                    }}
+                  >
+                    {pill.label}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -851,20 +956,47 @@ export const SkillGapTool: React.FC = () => {
               id="opportunities"
               title={SKILL_GAP_COPY.opportunitiesTitle}
               count={opportunitiesBadgeCount}
-              badgeClass="border border-[var(--cds-color-blue-200)] bg-[var(--cds-color-blue-25)] text-[var(--cds-color-grey-975)]"
+              badgeClass={
+                roleLinkPreviewCount > 0
+                  ? 'bg-[var(--cds-color-yellow-100)] text-[var(--cds-color-yellow-800)]'
+                  : 'border border-[var(--cds-color-blue-200)] bg-[var(--cds-color-blue-25)] text-[var(--cds-color-grey-975)]'
+              }
               expanded={expanded.opportunities}
               onToggle={() => toggle('opportunities')}
               emptyMessage={SKILL_GAP_COPY.opportunitiesEmpty}
               isLoading={roleLinkUploadBusy}
               loadingStatusText={SKILL_GAP_COPY.roleUploadLoadingStatus}
+              collapsedFooter={
+                roleLinkPreviewCount > 0 && opportunitiesForList.length < 1 ? (
+                  <TypewriterEncouragement
+                    text={SKILL_GAP_COPY.roleLinkOpportunitiesCollapsedEncouragement}
+                  />
+                ) : undefined
+              }
             >
               {opportunitiesForList.length > 0 ? (
-                <SkillList items={opportunitiesForList} />
+                <FoundSkillTags items={opportunitiesForList} />
               ) : roleLinkPreview ? (
-                <OpportunitiesRolePreviewBody
-                  focusNow={roleLinkPreview.focus}
-                  opportunities={roleLinkPreview.areas}
-                />
+                <div className="space-y-5">
+                  <RoleLinkPrioritySkillsPreviewSection
+                    focus={roleLinkPreview.focus}
+                    selectedPriorityIndex={rolePrioritySkillIndex}
+                    onSelectPriorityIndex={selectRolePrioritySkill}
+                  />
+                  <RoleLinkOtherSkillAreasPreviewSection other={roleLinkPreview.other} />
+                  <TrendingCourseColumn
+                    id="skill-gap-trending-most-popular"
+                    title={roleLinkPreview.focus[rolePrioritySkillIndex] ?? ''}
+                    items={getCourseraShortCoursesForPrioritySkill(
+                      roleLinkPreview.focus[rolePrioritySkillIndex] ?? roleLinkPreview.focus[0] ?? '',
+                    )}
+                    className="animate-fade-in-soft"
+                    onHeadingCycle={
+                      roleLinkPreview.focus.length > 1 ? cycleRolePrioritySkill : undefined
+                    }
+                    headingCycleAriaLabel="Show courses for next priority skill"
+                  />
+                </div>
               ) : null}
             </CollapsiblePanel>
 

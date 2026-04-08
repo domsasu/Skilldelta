@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Icons } from './Icons';
 import { SkillGapTool } from './SkillGapTool';
+import { TrendingCourseColumn } from './TrendingCourseColumn';
+import { trendingItems } from './trendingItems';
 import {
   CohortId,
   COHORTS,
@@ -43,6 +45,8 @@ interface HomeProps {
   dailyTimeGoal?: number;
   introModalClosed?: boolean;
   enrolledCoursesLoading?: boolean;
+  /** From Header career popover — scroll to Skill Gap and expand full tool. */
+  skillGapExpandRequestToken?: number;
 }
 
 // Calculate career progress based on skills XP (matches MyLearning.tsx logic)
@@ -330,24 +334,6 @@ function RecommendedCourseCard({
   );
 }
 
-const trendingItems = {
-  mostPopular: [
-    { title: "Google AI Essentials", provider: "Google", type: "Specialization", rating: 4.9, image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=128&h=128" },
-    { title: "Agentic AI and AI Agents", provider: "Microsoft", type: "Course", rating: 4.9, image: "https://images.unsplash.com/photo-1515879218367-8466d910auj7?auto=format&fit=crop&q=80&w=128&h=128" },
-    { title: "Agentic AI and AI Agents", provider: "Meta", type: "Course", rating: 4.9, image: "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&q=80&w=128&h=128" },
-  ],
-  weeklySpotlight: [
-    { title: "Successful Negotiation: Essential", provider: "IBM", type: "Specialization", rating: 4.9, image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=128&h=128" },
-    { title: "Successful Negotiation: Essential", provider: "IBM", type: "Professional Certificate", rating: 4.9, image: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=128&h=128" },
-    { title: "Successful Negotiation: Essential", provider: "Google", type: "Professional Certificate", rating: 4.9, image: "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&q=80&w=128&h=128" },
-  ],
-  earnDegree: [
-    { title: "Excel Skills for Business", provider: "University of Illinois", type: "Specialization", rating: 4.9, image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=128&h=128" },
-    { title: "Prompt Engineering for ChatGPT", provider: "IBM", type: "Course", rating: 4.9, image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=128&h=128" },
-    { title: "Strategic Leadership and...", provider: "Macquarie University", type: "Course", rating: 4.9, image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=128&h=128" },
-  ]
-};
-
 const inDemandSkills = [
   "Natural Language", "Prompt Engineering", "Python", "Generative AI", 
   "Computer Vision", "SQL", "Responsible AI", "Prompt Engineering",
@@ -444,7 +430,8 @@ export const Home: React.FC<HomeProps> = ({
     onTakeSkillAssessment,
     dailyTimeGoal = 60,
     introModalClosed = true,
-    enrolledCoursesLoading = false
+    enrolledCoursesLoading = false,
+    skillGapExpandRequestToken = 0,
 }) => {
   const streakHoursCompletedToday = 0;
 
@@ -886,7 +873,7 @@ export const Home: React.FC<HomeProps> = ({
       {/* White Content Area */}
       <div className="max-w-[1440px] mx-auto px-6 py-10 space-y-12">
 
-        <SkillGapTool />
+        <SkillGapTool expandRequestToken={skillGapExpandRequestToken} />
 
         {/* Course Recommendations - loads in after top section */}
         <CourseRecommendationsRail />
@@ -897,100 +884,11 @@ export const Home: React.FC<HomeProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Most Popular */}
-            <div className="bg-[var(--cds-color-grey-25)] rounded-[var(--cds-border-radius-200)] p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <h3 className="cds-subtitle-md text-[var(--cds-color-grey-975)]">Most popular</h3>
-                <span className="material-symbols-rounded text-[var(--cds-color-grey-600)]" style={{ fontSize: '20px' }}>arrow_forward</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {trendingItems.mostPopular.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-[var(--cds-color-white)] rounded-[var(--cds-border-radius-100)] p-2 cursor-pointer group">
-                    <div className="w-16 h-16 rounded-[var(--cds-border-radius-50)] shrink-0 overflow-hidden bg-[var(--cds-color-grey-100)]">
-                      <img src={item.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <div className="w-[18px] h-[18px] border border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-50)] shrink-0 bg-[var(--cds-color-white)]" />
-                        <span className="cds-body-secondary text-[var(--cds-color-grey-600)]">{item.provider}</span>
-                      </div>
-                      <p className="cds-subtitle-sm text-[var(--cds-color-grey-975)] group-hover:text-[var(--cds-color-blue-700)]">{item.title}</p>
-                      <div className="flex items-center gap-2 cds-body-tertiary text-[var(--cds-color-grey-600)]">
-                        <span>{item.type}</span>
-                        <span>·</span>
-                        <span className="flex items-center gap-0.5">
-                          <span className="material-symbols-rounded text-[var(--cds-color-grey-975)]" style={{ fontSize: '12px', fontVariationSettings: "'FILL' 1" }}>star</span>
-                          {item.rating}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TrendingCourseColumn title="Most popular" items={trendingItems.mostPopular} />
 
-            {/* Weekly Spotlight */}
-            <div className="bg-[var(--cds-color-grey-25)] rounded-[var(--cds-border-radius-200)] p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <h3 className="cds-subtitle-md text-[var(--cds-color-grey-975)]">Weekly spotlight</h3>
-                <span className="material-symbols-rounded text-[var(--cds-color-grey-600)]" style={{ fontSize: '20px' }}>arrow_forward</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {trendingItems.weeklySpotlight.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-[var(--cds-color-white)] rounded-[var(--cds-border-radius-100)] p-2 cursor-pointer group">
-                    <div className="w-16 h-16 rounded-[var(--cds-border-radius-50)] shrink-0 overflow-hidden bg-[var(--cds-color-grey-100)]">
-                      <img src={item.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <div className="w-[18px] h-[18px] border border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-50)] shrink-0 bg-[var(--cds-color-white)]" />
-                        <span className="cds-body-secondary text-[var(--cds-color-grey-600)]">{item.provider}</span>
-                      </div>
-                      <p className="cds-subtitle-sm text-[var(--cds-color-grey-975)] group-hover:text-[var(--cds-color-blue-700)]">{item.title}</p>
-                      <div className="flex items-center gap-2 cds-body-tertiary text-[var(--cds-color-grey-600)]">
-                        <span>{item.type}</span>
-                        <span>·</span>
-                        <span className="flex items-center gap-0.5">
-                          <span className="material-symbols-rounded text-[var(--cds-color-grey-975)]" style={{ fontSize: '12px', fontVariationSettings: "'FILL' 1" }}>star</span>
-                          {item.rating}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TrendingCourseColumn title="Weekly spotlight" items={trendingItems.weeklySpotlight} />
 
-            {/* Earn a degree */}
-            <div className="bg-[var(--cds-color-grey-25)] rounded-[var(--cds-border-radius-200)] p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <h3 className="cds-subtitle-md text-[var(--cds-color-grey-975)]">Earn a degree</h3>
-                <span className="material-symbols-rounded text-[var(--cds-color-grey-600)]" style={{ fontSize: '20px' }}>arrow_forward</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {trendingItems.earnDegree.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-[var(--cds-color-white)] rounded-[var(--cds-border-radius-100)] p-2 cursor-pointer group">
-                    <div className="w-16 h-16 rounded-[var(--cds-border-radius-50)] shrink-0 overflow-hidden bg-[var(--cds-color-grey-100)]">
-                      <img src={item.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <div className="w-[18px] h-[18px] border border-[var(--cds-color-grey-100)] rounded-[var(--cds-border-radius-50)] shrink-0 bg-[var(--cds-color-white)]" />
-                        <span className="cds-body-secondary text-[var(--cds-color-grey-600)]">{item.provider}</span>
-                      </div>
-                      <p className="cds-subtitle-sm text-[var(--cds-color-grey-975)] group-hover:text-[var(--cds-color-blue-700)]">{item.title}</p>
-                      <div className="flex items-center gap-2 cds-body-tertiary text-[var(--cds-color-grey-600)]">
-                        <span>{item.type}</span>
-                        <span>·</span>
-                        <span className="flex items-center gap-0.5">
-                          <span className="material-symbols-rounded text-[var(--cds-color-grey-975)]" style={{ fontSize: '12px', fontVariationSettings: "'FILL' 1" }}>star</span>
-                          {item.rating}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TrendingCourseColumn title="Earn a degree" items={trendingItems.earnDegree} />
           </div>
         </div>
 

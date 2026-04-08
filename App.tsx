@@ -50,6 +50,8 @@ const App: React.FC = () => {
   
   // View State - Default to 'home' for logged in homepage
   const [currentView, setCurrentView] = useState<View>('home');
+  /** Bumped from Header "Plan for specific job" to scroll to and expand Skill Gap on Home. */
+  const [skillGapExpandRequestToken, setSkillGapExpandRequestToken] = useState(0);
   
   // Assessment results - tracks sub-skill scores from the assessment
   // These values match what's shown in AssessmentResult: 10/10 correct for first skill, 
@@ -688,7 +690,12 @@ const App: React.FC = () => {
 
   const navigateToHome = () => {
     setCurrentView('home');
-  }
+  };
+
+  const handlePlanForSpecificJob = () => {
+    setCurrentView('home');
+    setSkillGapExpandRequestToken((n) => n + 1);
+  };
   
   const navigateToAssessment = () => {
     setCurrentView('assessment');
@@ -736,6 +743,7 @@ const App: React.FC = () => {
         onLogoClick={navigateToHome}
         isHomeView={currentView === 'home' || currentView === 'dashboard'}
         onNavigate={(view) => setCurrentView(view)}
+        onPlanForSpecificJob={handlePlanForSpecificJob}
         careerTitle={currentView === 'home' || currentView === 'dashboard' ? 'Data Analyst' : undefined}
       />
       
@@ -756,6 +764,7 @@ const App: React.FC = () => {
             onTakeSkillAssessment={navigateToAssessment}
             dailyTimeGoal={dailyTimeGoal}
             introModalClosed={true}
+            skillGapExpandRequestToken={skillGapExpandRequestToken}
           />
         )}
 

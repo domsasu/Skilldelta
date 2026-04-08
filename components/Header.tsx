@@ -14,6 +14,8 @@ interface HeaderProps {
   onLogoClick?: () => void;
   isHomeView?: boolean;
   onNavigate?: (view: any) => void;
+  /** Opens Home and expands the Skill Gap tool (career plan popover). */
+  onPlanForSpecificJob?: () => void;
   careerTitle?: string;
 }
 
@@ -75,6 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogoClick,
   isHomeView = false,
   onNavigate,
+  onPlanForSpecificJob,
   careerTitle
 }) => {
   const [animate, setAnimate] = useState(false);
@@ -516,7 +519,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => onNavigate?.('dashboard')}
+                    onClick={() => onPlanForSpecificJob?.()}
                     className="w-full rounded-[var(--cds-border-radius-100)] border border-[var(--cds-color-blue-700)] bg-[var(--cds-color-white)] px-4 py-2.5 cds-body-secondary font-semibold text-[var(--cds-color-blue-700)] shadow-sm transition-colors hover:bg-[var(--cds-color-blue-25)] sm:w-auto cds-action-secondary"
                   >
                     Plan for specific job

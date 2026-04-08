@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { CourseData, Lesson, Status } from '../types';
 import { courseCompletionDisplayPercent } from '../skills';
 import { LetterAvatar } from './WeeklyLearningLeaderboard';
+import { SkillGapTool } from './SkillGapTool';
 
 interface MyLearningProps {
   onContinueCourse: () => void;
@@ -654,13 +655,7 @@ export const MyLearning: React.FC<MyLearningProps> = ({
             <EmptyTab icon="workspace_premium" title="Certificates & Badges" body="Your earned certificates and badges will appear here." />
           )}
 
-          {activeTab === 'career-tools' && (
-            <EmptyTab
-              icon="work"
-              title="Career tools"
-              body="Resume helpers, interview prep, and job-market insights tailored to your goal will show up here."
-            />
-          )}
+          {activeTab === 'career-tools' && <SkillGapTool defaultExpanded />}
         </div>
 
         {/* Right sidebar */}
