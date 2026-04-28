@@ -3,8 +3,6 @@ import React, { useState } from 'react';
 import { CourseData, Lesson, Status } from '../types';
 import { courseCompletionDisplayPercent } from '../skills';
 import { LetterAvatar } from './WeeklyLearningLeaderboard';
-import { SkillGapTool } from './SkillGapTool';
-
 interface MyLearningProps {
   onContinueCourse: () => void;
   activeLesson: Lesson;
@@ -15,14 +13,13 @@ interface MyLearningProps {
   assessmentResults?: Record<string, number> | null;
 }
 
-type TabId = 'in-progress' | 'saved' | 'completed' | 'skills' | 'career-tools';
+type TabId = 'in-progress' | 'saved' | 'completed' | 'skills';
 
 const TABS: { id: TabId; label: string; newBadge?: boolean }[] = [
   { id: 'in-progress', label: 'In progress' },
   { id: 'completed', label: 'Completed' },
   { id: 'saved', label: 'Saved' },
   { id: 'skills', label: 'Certificates & Badges' },
-  { id: 'career-tools', label: 'Career tools', newBadge: true },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -654,8 +651,6 @@ export const MyLearning: React.FC<MyLearningProps> = ({
           {activeTab === 'skills' && (
             <EmptyTab icon="workspace_premium" title="Certificates & Badges" body="Your earned certificates and badges will appear here." />
           )}
-
-          {activeTab === 'career-tools' && <SkillGapTool defaultExpanded />}
         </div>
 
         {/* Right sidebar */}

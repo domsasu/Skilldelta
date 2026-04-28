@@ -1,16 +1,8 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Icons } from './Icons';
-import { SkillGapTool } from './SkillGapTool';
 import { TrendingCourseColumn } from './TrendingCourseColumn';
 import { trendingItems } from './trendingItems';
-import {
-  CohortId,
-  COHORTS,
-  COHORT_LEADERBOARD,
-  MiniLeaderboardRow,
-} from './MyLearning';
-import { LetterAvatar } from './WeeklyLearningLeaderboard';
 import { CourseData, Status, ContentType } from '../types';
 import { PlanType } from './PersonalizeLearningModal';
 import {
@@ -45,8 +37,6 @@ interface HomeProps {
   dailyTimeGoal?: number;
   introModalClosed?: boolean;
   enrolledCoursesLoading?: boolean;
-  /** From Header career popover — scroll to Skill Gap and expand full tool. */
-  skillGapExpandRequestToken?: number;
 }
 
 // Calculate career progress based on skills XP (matches MyLearning.tsx logic)
@@ -318,17 +308,6 @@ function RecommendedCourseCard({
             Why is this recommended?
           </button>
         )}
-
-        {/* Spacer to push button to bottom */}
-        <div className="flex-1" />
-
-        {/* CTA */}
-        <button
-          type="button"
-          className="w-full bg-[var(--cds-color-blue-700)] hover:bg-[var(--cds-color-blue-800)] text-[var(--cds-color-white)] cds-action-secondary py-2 rounded-[var(--cds-border-radius-100)] transition-colors mt-2"
-        >
-          Enroll for free
-        </button>
       </div>
     </div>
   );
@@ -339,81 +318,6 @@ const inDemandSkills = [
   "Computer Vision", "SQL", "Responsible AI", "Prompt Engineering",
   "Computer Vision", "Computer Vision", "Computer Vision"
 ];
-
-function HomeLeaderboard({
-  selectedCohort,
-  onSelectCohort,
-}: {
-  selectedCohort: CohortId;
-  onSelectCohort: (id: CohortId) => void;
-}) {
-  const board = COHORT_LEADERBOARD[selectedCohort];
-
-  const fullLeaderboardPanel = (
-    <>
-      <div className="mb-3 flex items-center gap-3 flex-wrap">
-        <h2 className="cds-subtitle-lg text-[var(--cds-color-grey-975)]">
-          Leaderboard
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {COHORTS.map((cohort) => {
-            const isActive = cohort.id === selectedCohort;
-            return (
-              <button
-                key={cohort.id}
-                type="button"
-                onClick={() => onSelectCohort(cohort.id)}
-                className={`cds-body-secondary h-8 rounded-[var(--cds-border-radius-400)] px-3 py-1 transition-colors ${
-                  isActive
-                    ? 'bg-[var(--cds-color-grey-800)] text-[var(--cds-color-white)]'
-                    : 'bg-[var(--cds-color-white)] border border-[var(--cds-color-grey-100)] text-[var(--cds-color-grey-975)] hover:bg-[var(--cds-color-grey-25)]'
-                }`}
-              >
-                {cohort.label}{' '}
-                <span className={isActive ? 'text-[var(--cds-color-grey-200)]' : 'text-[var(--cds-color-grey-600)]'}>
-                  {cohort.members.toLocaleString()}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[var(--cds-color-grey-50)] text-[var(--cds-color-grey-600)] hover:text-[var(--cds-color-grey-975)] transition-colors ml-auto"
-          aria-label="Join a cohort"
-        >
-          <span className="material-symbols-rounded" style={{ fontSize: 20 }}>add</span>
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-[var(--cds-border-radius-200)] border border-[var(--cds-color-grey-100)] bg-[var(--cds-color-white)] p-5">
-          <p className="cds-body-tertiary text-[var(--cds-color-grey-600)] mb-1.5">Top 3</p>
-          <div className="space-y-1">
-            {board.top3.map((p) => (
-              <MiniLeaderboardRow key={p.rank} peer={p} isUser={p.rank === board.userRank} isMedal />
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[var(--cds-border-radius-200)] border border-[var(--cds-color-grey-100)] bg-[var(--cds-color-white)] p-5">
-          <p className="cds-body-tertiary text-[var(--cds-color-grey-600)] mb-1.5">Around you</p>
-          <div className="space-y-1">
-            {board.around.map((p) => (
-              <MiniLeaderboardRow key={p.rank} peer={p} isUser={p.rank === board.userRank} isMedal={false} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
-  return (
-    <div className="rounded-[var(--cds-border-radius-200)] bg-[var(--cds-color-white)] p-4 sm:p-5">
-      {fullLeaderboardPanel}
-    </div>
-  );
-}
 
 export const Home: React.FC<HomeProps> = ({ 
     onResume, 
@@ -431,11 +335,8 @@ export const Home: React.FC<HomeProps> = ({
     dailyTimeGoal = 60,
     introModalClosed = true,
     enrolledCoursesLoading = false,
-    skillGapExpandRequestToken = 0,
 }) => {
   const streakHoursCompletedToday = 0;
-
-  const [selectedCohort, setSelectedCohort] = useState<CohortId>('careerswitchers');
 
   // Intro video: muted by default, end state for "Continue watching"
   const [introVideoMuted, setIntroVideoMuted] = useState(true);
@@ -873,8 +774,6 @@ export const Home: React.FC<HomeProps> = ({
       {/* White Content Area */}
       <div className="max-w-[1440px] mx-auto px-6 py-10 space-y-12">
 
-        <SkillGapTool expandRequestToken={skillGapExpandRequestToken} />
-
         {/* Course Recommendations - loads in after top section */}
         <CourseRecommendationsRail />
 
@@ -913,9 +812,6 @@ export const Home: React.FC<HomeProps> = ({
         </div>
 
         <CourseRecommendationsRail />
-
-        {/* Leaderboard: collapsed strip + full view in drawer */}
-        <HomeLeaderboard selectedCohort={selectedCohort} onSelectCohort={setSelectedCohort} />
 
       </div>
     </div>
